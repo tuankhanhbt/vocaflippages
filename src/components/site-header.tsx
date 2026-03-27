@@ -1,15 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { Button, getButtonClassName } from "@/components/ui/button";
 import { clearAuthSession, useAuthStore } from "@/store/auth.store";
 
 export function SiteHeader() {
+  const pathname = usePathname();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const { token, user } = useAuthStore();
+
+  if (pathname === "/login" || pathname === "/register") {
+    return null;
+  }
 
   function handleLogout() {
     clearAuthSession();
@@ -20,10 +25,10 @@ export function SiteHeader() {
   }
 
   return (
-    <header className="sticky top-0 z-30 border-b border-white/50 bg-white/75 backdrop-blur-xl">
+    <header className="sticky top-0 z-30 border-b border-white/40 bg-white/70 backdrop-blur-xl">
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-6 px-6 py-4">
         <Link className="flex items-center gap-3" href="/">
-          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#205781_0%,#4f8fc0_100%)] text-lg font-bold text-white shadow-[0_16px_32px_rgba(32,87,129,0.32)]">
+          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[hsl(var(--primary))] text-lg font-bold text-white shadow-[0_16px_32px_hsla(var(--auth-glow),0.32)]">
             V
           </span>
           <span className="flex flex-col">

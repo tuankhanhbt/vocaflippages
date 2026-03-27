@@ -7,10 +7,11 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantClasses: Record<NonNullable<ButtonProps["variant"]>, string> = {
   primary:
-    "bg-[linear-gradient(135deg,#205781_0%,#4f8fc0_100%)] text-white shadow-[0_18px_40px_rgba(32,87,129,0.28)] hover:brightness-110",
+    "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] shadow-[0_18px_40px_hsla(var(--auth-glow),0.28)] hover:brightness-110",
   secondary:
-    "border border-slate-300 bg-white text-slate-900 hover:border-slate-400 hover:bg-slate-50",
-  ghost: "bg-transparent text-slate-700 hover:bg-slate-100",
+    "border border-[hsl(var(--auth-border))] bg-white/80 text-slate-900 hover:border-[hsl(var(--primary))] hover:bg-white",
+  ghost:
+    "bg-transparent text-slate-700 hover:bg-[hsla(var(--primary),0.08)]",
 };
 
 export function getButtonClassName(
@@ -19,7 +20,7 @@ export function getButtonClassName(
   className = "",
 ) {
   return [
-    "inline-flex min-h-12 items-center justify-center rounded-2xl px-5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60",
+    "inline-flex min-h-12 items-center justify-center rounded-[1.15rem] px-5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60",
     block ? "w-full" : "",
     variantClasses[variant],
     className,
