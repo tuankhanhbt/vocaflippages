@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Vocaflip Auth Playground",
-  description: "Frontend auth flow connected to the Vocaflip API.",
+  title: "Vocaflip",
+  description: "Frontend auth, flashcard management, and study flow for Vocaflip.",
 };
 
 export default function RootLayout({

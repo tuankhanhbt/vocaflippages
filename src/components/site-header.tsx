@@ -36,17 +36,17 @@ export function SiteHeader() {
               Vocaflip
             </span>
             <span className="text-lg font-semibold text-slate-950">
-              Auth Playground
+              Flashcard Workspace
             </span>
           </span>
         </Link>
 
         <nav className="hidden items-center gap-6 text-sm font-medium text-slate-600 md:flex">
-          <Link className="transition hover:text-slate-950" href="/register">
-            Register
+          <Link className="transition hover:text-slate-950" href="/">
+            Home
           </Link>
-          <Link className="transition hover:text-slate-950" href="/login">
-            Login
+          <Link className="transition hover:text-slate-950" href="/dashboard">
+            Dashboard
           </Link>
           <Link className="transition hover:text-slate-950" href="/me">
             My Account

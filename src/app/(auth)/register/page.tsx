@@ -3,7 +3,7 @@ import { AuthScreen } from "@/features/auth/components/auth-screen";
 
 export const metadata: Metadata = {
   title: "Register | Vocaflip",
-  description: "Register page connected to the Vocaflip auth API.",
+  description: "Create your Vocaflip account.",
 };
 
 export default function RegisterPage() {

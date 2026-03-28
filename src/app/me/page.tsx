@@ -3,7 +3,7 @@ import { ProfilePanel } from "@/features/auth/components/profile-panel";
 
 export const metadata: Metadata = {
   title: "My Account | Vocaflip",
-  description: "Protected profile testing page for the Vocaflip API.",
+  description: "Protected profile page for Vocaflip.",
 };
 
 export default function MePage() {

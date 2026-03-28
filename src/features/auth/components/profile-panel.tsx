@@ -7,7 +7,6 @@ import { Button, getButtonClassName } from "@/components/ui/button";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { userService } from "@/services/user.service";
 import {
-  AUTH_TOKEN_STORAGE_KEY,
   clearAuthSession,
   updateAuthUser,
   useAuthStore,
@@ -89,12 +88,8 @@ export function ProfilePanel() {
             You need to login before opening `/me`.
           </h1>
           <p className="max-w-2xl text-base leading-8 text-slate-600">
-            This page reads the JWT from{" "}
-            <span className="font-semibold text-slate-800">
-              {AUTH_TOKEN_STORAGE_KEY}
-            </span>{" "}
-            in localStorage and then calls{" "}
-            <span className="font-semibold text-slate-800">GET /api/users/me</span>.
+            Sign in first to unlock your account details, daily goal, and learning progress in one
+            place.
           </p>
         </div>
 
@@ -128,18 +123,24 @@ export function ProfilePanel() {
               {user?.fullName ?? "Loading your account..."}
             </h1>
             <p className="text-base leading-8 text-slate-600">
-              This screen verifies that your frontend can reuse the saved JWT for protected requests.
+              Keep an eye on your identity, goals, and streak without leaving your study workspace.
             </p>
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row">
+            <Link
+              className={getButtonClassName("secondary", false)}
+              href="/dashboard"
+            >
+              Open dashboard
+            </Link>
             <Button
               disabled={isLoading}
               onClick={() => void fetchProfile()}
               type="button"
               variant="secondary"
             >
-              {isLoading ? "Refreshing..." : "Refresh from API"}
+              {isLoading ? "Refreshing..." : "Refresh profile"}
             </Button>
             <Button
               disabled={isNavigating}
@@ -198,8 +199,7 @@ export function ProfilePanel() {
               Session Details
             </p>
             <p className="mt-3 text-sm leading-7 text-slate-300">
-              The user payload below is coming from your login/register flow and can be refreshed with{" "}
-              <span className="font-semibold text-white">GET /api/users/me</span>.
+              A quick snapshot of your current account and study settings.
             </p>
           </div>
 

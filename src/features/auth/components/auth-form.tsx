@@ -83,7 +83,7 @@ export function AuthForm({ mode, onModeChange }: AuthFormProps) {
       setAuthSession(response);
 
       startTransition(() => {
-        router.push("/me");
+        router.push("/dashboard");
       });
     } catch (error) {
       setErrorMessage(
@@ -122,9 +122,9 @@ export function AuthForm({ mode, onModeChange }: AuthFormProps) {
         <div className="flex flex-col gap-3 sm:flex-row">
           <Link
             className={getButtonClassName("primary", true, "sm:flex-1 min-h-16 text-base")}
-            href="/me"
+            href="/dashboard"
           >
-            Go to my account
+            Go to dashboard
           </Link>
           <Link
             className={getButtonClassName("secondary", true, "sm:flex-1 min-h-16 text-base")}
