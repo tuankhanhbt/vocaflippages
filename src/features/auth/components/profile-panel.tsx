@@ -12,22 +12,11 @@ import {
   useAuthStore,
 } from "@/store/auth.store";
 
-const userFieldLabels = {
-  active: "Status",
-  createdAt: "Created at",
-  currentStreak: "Current streak",
-  dailyGoal: "Daily goal",
-  email: "Email",
-  role: "Role",
-  updatedAt: "Updated at",
-} as const;
-
 export function ProfilePanel() {
   const router = useRouter();
   const [isNavigating, startTransition] = useTransition();
   const { isHydrated, token, user } = useAuthStore();
   const [errorMessage, setErrorMessage] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
 
   async function fetchProfile() {
     if (!token) {
@@ -35,7 +24,6 @@ export function ProfilePanel() {
     }
 
     setErrorMessage("");
-    setIsLoading(true);
 
     try {
       const profile = await userService.getMe();
@@ -44,8 +32,6 @@ export function ProfilePanel() {
       setErrorMessage(
         getApiErrorMessage(error, "Unable to fetch your profile right now."),
       );
-    } finally {
-      setIsLoading(false);
     }
   }
 
@@ -57,7 +43,7 @@ export function ProfilePanel() {
     clearAuthSession();
 
     startTransition(() => {
-      router.push("/login");
+      router.push("/");
     });
   }
 
@@ -112,8 +98,8 @@ export function ProfilePanel() {
   }
 
   return (
-    <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-      <div className="rounded-[2rem] border border-white/70 bg-white/92 p-8 shadow-[0_28px_80px_rgba(15,23,42,0.16)]">
+    <section className="rounded-[2rem] border border-white/70 bg-white/92 p-8 shadow-[0_28px_80px_rgba(15,23,42,0.16)]">
+      <div>
         <div className="flex flex-col gap-6 border-b border-slate-100 pb-6 sm:flex-row sm:items-end sm:justify-between">
           <div className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
@@ -135,14 +121,6 @@ export function ProfilePanel() {
               Open dashboard
             </Link>
             <Button
-              disabled={isLoading}
-              onClick={() => void fetchProfile()}
-              type="button"
-              variant="secondary"
-            >
-              {isLoading ? "Refreshing..." : "Refresh profile"}
-            </Button>
-            <Button
               disabled={isNavigating}
               onClick={handleLogout}
               type="button"
@@ -162,17 +140,11 @@ export function ProfilePanel() {
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
           <article className="rounded-3xl border border-slate-100 bg-slate-50/90 p-5">
             <p className="text-xs uppercase tracking-[0.22em] text-slate-500">
-              Identity
+              Email
             </p>
             <h2 className="mt-2 text-xl font-semibold text-slate-950">
               {user?.email ?? "Unknown"}
             </h2>
-            <p className="mt-3 text-sm leading-7 text-slate-600">
-              Role:{" "}
-              <span className="font-semibold text-slate-800">
-                {user?.role ?? "N/A"}
-              </span>
-            </p>
           </article>
 
           <article className="rounded-3xl border border-slate-100 bg-slate-50/90 p-5">
@@ -191,35 +163,6 @@ export function ProfilePanel() {
           </article>
         </div>
       </div>
-
-      <aside className="rounded-[2rem] border border-white/70 bg-[linear-gradient(180deg,#0f172a_0%,#172554_100%)] p-8 text-white shadow-[0_28px_80px_rgba(15,23,42,0.16)]">
-        <div className="space-y-6">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-200">
-              Session Details
-            </p>
-            <p className="mt-3 text-sm leading-7 text-slate-300">
-              A quick snapshot of your current account and study settings.
-            </p>
-          </div>
-
-          <dl className="grid gap-3">
-            {Object.entries(userFieldLabels).map(([key, label]) => (
-              <div
-                key={key}
-                className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4"
-              >
-                <dt className="text-xs uppercase tracking-[0.2em] text-cyan-100/70">
-                  {label}
-                </dt>
-                <dd className="mt-2 text-sm font-medium text-white">
-                  {user ? String(user[key as keyof typeof userFieldLabels]) : "N/A"}
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </div>
-      </aside>
     </section>
   );
 }

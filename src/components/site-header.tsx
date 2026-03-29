@@ -20,7 +20,7 @@ export function SiteHeader() {
     clearAuthSession();
 
     startTransition(() => {
-      router.push("/login");
+      router.push("/");
     });
   }
 
@@ -48,22 +48,22 @@ export function SiteHeader() {
           <Link className="transition hover:text-slate-950" href="/dashboard">
             Dashboard
           </Link>
-          <Link className="transition hover:text-slate-950" href="/me">
-            My Account
-          </Link>
         </nav>
 
         <div className="flex items-center gap-3">
           {token ? (
             <>
-              <div className="hidden rounded-2xl border border-slate-200 bg-white px-4 py-2 text-right md:block">
+              <Link
+                className="hidden rounded-2xl border border-slate-200 bg-white px-4 py-2 text-right transition hover:border-[hsl(var(--primary))] hover:bg-slate-50 md:block"
+                href="/me"
+              >
                 <p className="text-xs uppercase tracking-[0.22em] text-slate-500">
                   Active Session
                 </p>
                 <p className="text-sm font-semibold text-slate-950">
                   {user?.fullName ?? "Authenticated"}
                 </p>
-              </div>
+              </Link>
               <Button
                 disabled={isPending}
                 onClick={handleLogout}

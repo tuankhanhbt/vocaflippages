@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useEffectEvent, useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowRight, BookOpen, Layers3, Sparkles, Zap } from "lucide-react";
+import { ArrowRight, Sparkles } from "lucide-react";
 import { getButtonClassName } from "@/components/ui/button";
 import { DeckCard } from "@/features/flashcards/components/deck-card";
 import { getApiErrorMessage } from "@/lib/api-error";
@@ -12,7 +12,7 @@ import { useAuthStore } from "@/store/auth.store";
 import type { FlashcardSet } from "@/types/flashcard";
 
 export function LandingPage() {
-  const { isHydrated, token, user } = useAuthStore();
+  const { isHydrated, token } = useAuthStore();
   const [previewSets, setPreviewSets] = useState<FlashcardSet[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -125,44 +125,6 @@ export function LandingPage() {
             ))}
           </div>
         </div>
-      </section>
-
-      <section className="grid gap-6 lg:grid-cols-3">
-        {[
-          {
-            description:
-              token && user
-                ? `${user.fullName} can create sets, edit cards, and review progress through the protected dashboard.`
-                : "Sign in to unlock your personal workspace and keep all your decks in one place.",
-            icon: Zap,
-            title: token ? "Protected workspace" : "Auth first",
-          },
-          {
-            description:
-              "Create deck metadata with title, description, language pair, then jump into the deck detail page.",
-            icon: Layers3,
-            title: "Deck CRUD",
-          },
-          {
-            description:
-              "Support both text and image flashcards, plus a polished flip-card study mode inspired by the provided starter UI.",
-            icon: BookOpen,
-            title: "Study mode",
-          },
-        ].map((item) => (
-          <article
-            className="rounded-[1.75rem] border border-white/70 bg-white/92 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.10)]"
-            key={item.title}
-          >
-            <item.icon className="h-6 w-6 text-[#205781]" />
-            <h3 className="mt-4 text-2xl font-semibold tracking-tight text-slate-950">
-              {item.title}
-            </h3>
-            <p className="mt-4 text-sm leading-7 text-slate-600">
-              {item.description}
-            </p>
-          </article>
-        ))}
       </section>
 
       {token ? (
