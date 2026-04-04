@@ -16,7 +16,6 @@ import {
 } from "lucide-react";
 import { Button, getButtonClassName } from "@/components/ui/button";
 import { CardForm } from "@/features/flashcards/components/card-form";
-import { FlashcardPlayer } from "@/features/flashcards/components/flashcard-player";
 import {
   getDeckPresentation,
   getLanguagePairLabel,
@@ -26,7 +25,8 @@ import { flashcardService } from "@/services/flashcard.service";
 import { flashcardSetService } from "@/services/flashcard-set.service";
 import { useAuthStore } from "@/store/auth.store";
 import type { Flashcard, FlashcardPayload, FlashcardSet } from "@/types/flashcard";
-
+import { ReviewModePlayer } from "./review-mode-player";
+import { StudyModePlayer } from "./study-mode-player";
 interface DeckPageProps {
   deckId: string;
 }
@@ -37,12 +37,12 @@ export function DeckPage({ deckId }: DeckPageProps) {
   const [deck, setDeck] = useState<FlashcardSet | null>(null);
   const [cards, setCards] = useState<Flashcard[]>([]);
   const [editingCard, setEditingCard] = useState<Flashcard | null>(null);
-  const [activeTab, setActiveTab] = useState<"study" | "manage">("study");
+  const [activeTab, setActiveTab] = useState<"review" |"study" | "manage">("manage");
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [formError, setFormError] = useState("");
-
+  const canAccessStudyMode = cards.length >= 4;
   const accent = getDeckPresentation(deckId);
 
   async function refreshDeck() {
@@ -332,12 +332,27 @@ export function DeckPage({ deckId }: DeckPageProps) {
         <button
           className={[
             "rounded-full px-5 py-3 text-sm font-semibold transition",
+            activeTab === "review"
+              ? "bg-[hsl(var(--primary))] text-white shadow-[0_18px_40px_hsla(var(--auth-glow),0.28)]"
+              : "border border-[hsl(var(--auth-border))] bg-white/85 text-slate-700",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+          onClick={() => setActiveTab("review")}
+          type="button"
+        >
+          Review mode
+        </button>
+        <button
+          className={[
+            "rounded-full px-5 py-3 text-sm font-semibold transition",
             activeTab === "study"
               ? "bg-[hsl(var(--primary))] text-white shadow-[0_18px_40px_hsla(var(--auth-glow),0.28)]"
               : "border border-[hsl(var(--auth-border))] bg-white/85 text-slate-700",
           ]
             .filter(Boolean)
             .join(" ")}
+          disabled={!canAccessStudyMode}
           onClick={() => setActiveTab("study")}
           type="button"
         >
@@ -364,198 +379,202 @@ export function DeckPage({ deckId }: DeckPageProps) {
           {errorMessage}
         </div>
       ) : null}
+  {activeTab === "review" ? (
+  <ReviewModePlayer deckId={deck.id} deckTitle={deck.title} />
+) : activeTab === "study" ? (
+  cards.length >= 4 ? (
+    <StudyModePlayer
+      deckId={deck.id}
+      deckTitle={deck.title}
+      totalDeckCards={cards.length}
+    />
+  ) : (
+    <section className="rounded-[2rem] border border-dashed border-slate-300 bg-white/80 p-10 text-center shadow-[0_20px_50px_rgba(15,23,42,0.06)]">
+      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
+        Not Enough Cards
+      </p>
+      <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950">
+        Add at least 4 flashcards before starting study mode
+      </h2>
+      <p className="mx-auto mt-4 max-w-2xl text-base leading-8 text-slate-600">
+        Study mode is a multiple-choice quiz, so this deck needs at least 4 cards.
+      </p>
+      <div className="mt-8">
+        <Button onClick={() => setActiveTab("manage")} type="button">
+          Go to manage cards
+        </Button>
+      </div>
+    </section>
+  )
+) : activeTab === "manage" ? (
+  <section className="space-y-5">
+    <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
+      <div className="rounded-[2rem] border border-white/70 bg-white/92 p-8 shadow-[0_28px_80px_rgba(15,23,42,0.12)]">
+        <CardForm
+          errorMessage={formError}
+          initialCard={editingCard}
+          isSubmitting={isSubmitting}
+          key={editingCard?.id ?? "create-card"}
+          mode={editingCard ? "edit" : "create"}
+          onCancel={() => {
+            setEditingCard(null);
+            setFormError("");
+          }}
+          onSubmit={handleCardSubmit}
+        />
+      </div>
 
-      {activeTab === "study" ? (
-        cards.length > 0 ? (
-          <FlashcardPlayer cards={cards} deckTitle={deck.title} />
-        ) : (
-          <section className="rounded-[2rem] border border-dashed border-slate-300 bg-white/80 p-10 text-center shadow-[0_20px_50px_rgba(15,23,42,0.06)]">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
-              No Cards Yet
-            </p>
-            <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950">
-              Add your first flashcard before starting study mode
-            </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-base leading-8 text-slate-600">
-              Use the manage tab to create text cards like {"cat -> con meo"} or image cards using a
-              public image URL.
-            </p>
-            <div className="mt-8">
-              <Button onClick={() => setActiveTab("manage")} type="button">
-                Go to manage cards
-              </Button>
+      <aside className="rounded-[2rem] border border-white/70 bg-[linear-gradient(180deg,#0f172a_0%,#172554_100%)] p-8 text-white shadow-[0_28px_80px_rgba(15,23,42,0.16)]">
+        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-200">
+          Deck Actions
+        </p>
+        <h2 className="mt-4 text-3xl font-semibold tracking-tight">
+          Shape this deck into a strong study session.
+        </h2>
+        <div className="mt-8 grid gap-3">
+          {[
+            "Add text cards for quick vocabulary drills",
+            "Use image cards when visual memory helps more",
+            "Switch to study mode anytime to review the deck",
+            "Keep only the cards that still feel useful",
+          ].map((item) => (
+            <div
+              className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-sm font-medium text-cyan-50"
+              key={item}
+            >
+              {item}
             </div>
-          </section>
-        )
-      ) : (
-        <section className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-          <div className="rounded-[2rem] border border-white/70 bg-white/92 p-8 shadow-[0_28px_80px_rgba(15,23,42,0.12)]">
-            <CardForm
-              errorMessage={formError}
-              initialCard={editingCard}
-              isSubmitting={isSubmitting}
-              key={editingCard?.id ?? "create-card"}
-              mode={editingCard ? "edit" : "create"}
-              onCancel={() => {
-                setEditingCard(null);
-                setFormError("");
-              }}
-              onSubmit={handleCardSubmit}
-            />
-          </div>
+          ))}
+        </div>
 
-        <aside className="rounded-[2rem] border border-white/70 bg-[linear-gradient(180deg,#0f172a_0%,#172554_100%)] p-8 text-white shadow-[0_28px_80px_rgba(15,23,42,0.16)]">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-200">
-            Deck Actions
+        <div className="mt-8 flex flex-wrap gap-3">
+          <Link
+            className={getButtonClassName("secondary", false, "min-w-[11rem] justify-center")}
+            href="/dashboard"
+          >
+            Edit set on dashboard
+          </Link>
+          <Button
+            className="min-w-[11rem] justify-center gap-2 bg-rose-500 text-white hover:brightness-110"
+            onClick={handleDeleteSet}
+            type="button"
+          >
+            <Trash2 size={16} />
+            Delete set
+          </Button>
+        </div>
+      </aside>
+    </div>
+
+    <section className="space-y-5">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
+            Deck Contents
           </p>
-          <h2 className="mt-4 text-3xl font-semibold tracking-tight">
-            Shape this deck into a strong study session.
+          <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
+            Flashcards in this set
           </h2>
-          <div className="mt-8 grid gap-3">
-            {[
-                "Add text cards for quick vocabulary drills",
-                "Use image cards when visual memory helps more",
-                "Switch to study mode anytime to review the deck",
-                "Keep only the cards that still feel useful",
-              ].map((item) => (
-                <div
-                  className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-sm font-medium text-cyan-50"
-                  key={item}
-                >
-                  {item}
+        </div>
+        {isLoading ? <p className="text-sm text-slate-500">Refreshing...</p> : null}
+      </div>
+
+      {cards.length === 0 ? (
+        <div className="rounded-[2rem] border border-dashed border-slate-300 bg-white/80 p-10 text-center shadow-[0_20px_50px_rgba(15,23,42,0.06)]">
+          <p className="text-sm leading-8 text-slate-600">
+            No flashcards yet. Create one above to begin testing the study flow.
+          </p>
+        </div>
+      ) : (
+        <div className="grid gap-4">
+          {cards.map((card) => (
+            <article
+              className="rounded-[1.8rem] border border-white/70 bg-white/92 p-5 shadow-[0_20px_50px_rgba(15,23,42,0.08)]"
+              key={card.id}
+            >
+              <div className="grid gap-5 lg:grid-cols-[0.75fr_1.25fr]">
+                <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50/90 p-5">
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
+                    Front
+                  </p>
+                  <p className="mt-3 text-xs font-semibold uppercase tracking-[0.22em] text-[#205781]">
+                    {card.frontContentType}
+                  </p>
+
+                  {card.frontContentType === "IMAGE" && card.frontImageUrl ? (
+                    <img
+                      alt={card.backText}
+                      className="mt-4 aspect-[4/3] w-full rounded-[1.2rem] object-cover"
+                      src={card.frontImageUrl}
+                    />
+                  ) : (
+                    <h3 className="mt-4 text-2xl font-semibold tracking-tight text-slate-950">
+                      {card.frontText}
+                    </h3>
+                  )}
                 </div>
-              ))}
-            </div>
 
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link
-                className={getButtonClassName("secondary", false, "min-w-[11rem] justify-center")}
-                href="/dashboard"
-              >
-                Edit set on dashboard
-              </Link>
-              <Button
-                className="min-w-[11rem] justify-center gap-2 bg-rose-500 text-white hover:brightness-110"
-                onClick={handleDeleteSet}
-                type="button"
-              >
-                <Trash2 size={16} />
-                Delete set
-              </Button>
-            </div>
-          </aside>
-        </section>
-      )}
-
-      {activeTab === "manage" ? (
-        <section className="space-y-5">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
-                Deck Contents
-              </p>
-              <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
-                Flashcards in this set
-              </h2>
-            </div>
-            {isLoading ? <p className="text-sm text-slate-500">Refreshing...</p> : null}
-          </div>
-
-          {cards.length === 0 ? (
-            <div className="rounded-[2rem] border border-dashed border-slate-300 bg-white/80 p-10 text-center shadow-[0_20px_50px_rgba(15,23,42,0.06)]">
-              <p className="text-sm leading-8 text-slate-600">
-                No flashcards yet. Create one above to begin testing the study flow.
-              </p>
-            </div>
-          ) : (
-            <div className="grid gap-4">
-              {cards.map((card) => (
-                <article
-                  className="rounded-[1.8rem] border border-white/70 bg-white/92 p-5 shadow-[0_20px_50px_rgba(15,23,42,0.08)]"
-                  key={card.id}
-                >
-                  <div className="grid gap-5 lg:grid-cols-[0.75fr_1.25fr]">
-                    <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50/90 p-5">
-                      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
-                        Front
-                      </p>
-                      <p className="mt-3 text-xs font-semibold uppercase tracking-[0.22em] text-[#205781]">
-                        {card.frontContentType}
-                      </p>
-
-                      {card.frontContentType === "IMAGE" && card.frontImageUrl ? (
-                        <img
-                          alt={card.backText}
-                          className="mt-4 aspect-[4/3] w-full rounded-[1.2rem] object-cover"
-                          src={card.frontImageUrl}
-                        />
-                      ) : (
-                        <h3 className="mt-4 text-2xl font-semibold tracking-tight text-slate-950">
-                          {card.frontText}
-                        </h3>
-                      )}
-                    </div>
-
-                    <div className="flex flex-col gap-4 rounded-[1.5rem] border border-slate-200 bg-white/80 p-5">
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
-                          Back text
-                        </p>
-                        <h3 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
-                          {card.backText}
-                        </h3>
-                      </div>
-
-                      {card.exampleText ? (
-                        <div>
-                          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
-                            Example
-                          </p>
-                          <p className="mt-2 text-sm leading-7 text-slate-600">
-                            {card.exampleText}
-                          </p>
-                        </div>
-                      ) : null}
-
-                      {card.noteText ? (
-                        <div>
-                          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
-                            Note
-                          </p>
-                          <p className="mt-2 text-sm leading-7 text-slate-600">
-                            {card.noteText}
-                          </p>
-                        </div>
-                      ) : null}
-
-                      <div className="flex flex-wrap gap-3 pt-2">
-                        <Button
-                          className="min-h-11 gap-2"
-                          onClick={() => setEditingCard(card)}
-                          type="button"
-                          variant="secondary"
-                        >
-                          <PencilLine size={16} />
-                          Edit
-                        </Button>
-                        <Button
-                          className="min-h-11 gap-2 text-rose-700 hover:bg-rose-50"
-                          onClick={() => void handleDeleteCard(card)}
-                          type="button"
-                          variant="ghost"
-                        >
-                          <Trash2 size={16} />
-                          Delete
-                        </Button>
-                      </div>
-                    </div>
+                <div className="flex flex-col gap-4 rounded-[1.5rem] border border-slate-200 bg-white/80 p-5">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
+                      Back text
+                    </p>
+                    <h3 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
+                      {card.backText}
+                    </h3>
                   </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
-      ) : null}
+
+                  {card.exampleText ? (
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
+                        Example
+                      </p>
+                      <p className="mt-2 text-sm leading-7 text-slate-600">
+                        {card.exampleText}
+                      </p>
+                    </div>
+                  ) : null}
+
+                  {card.noteText ? (
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
+                        Note
+                      </p>
+                      <p className="mt-2 text-sm leading-7 text-slate-600">
+                        {card.noteText}
+                      </p>
+                    </div>
+                  ) : null}
+
+                  <div className="flex flex-wrap gap-3 pt-2">
+                    <Button
+                      className="min-h-11 gap-2"
+                      onClick={() => setEditingCard(card)}
+                      type="button"
+                      variant="secondary"
+                    >
+                      <PencilLine size={16} />
+                      Edit
+                    </Button>
+                    <Button
+                      className="min-h-11 gap-2 text-rose-700 hover:bg-rose-50"
+                      onClick={() => void handleDeleteCard(card)}
+                      type="button"
+                      variant="ghost"
+                    >
+                      <Trash2 size={16} />
+                      Delete
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  </section>
+) : null}
     </div>
   );
 }
