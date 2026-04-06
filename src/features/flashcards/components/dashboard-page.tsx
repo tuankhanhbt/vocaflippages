@@ -2,23 +2,33 @@
 
 import Link from "next/link";
 import { useEffect, useEffectEvent, useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { BookOpen, Layers3, Target, WandSparkles } from "lucide-react";
 import { getButtonClassName } from "@/components/ui/button";
+import { AiSetGeneratorForm } from "@/features/flashcards/components/ai-set-generator-form";
 import { DeckCard } from "@/features/flashcards/components/deck-card";
 import { ShareCodeForm } from "@/features/flashcards/components/share-code-form";
 import { SetForm } from "@/features/flashcards/components/set-form";
 import { getApiErrorMessage } from "@/lib/api-error";
+import { aiFlashcardGenerationService } from "@/services/ai-flashcard-generation.service";
 import { flashcardSetService } from "@/services/flashcard-set.service";
 import { useAuthStore } from "@/store/auth.store";
-import type { FlashcardSet, FlashcardSetPayload } from "@/types/flashcard";
+import type {
+  FlashcardSet,
+  FlashcardSetPayload,
+  GenerateAiFlashcardSetPayload,
+} from "@/types/flashcard";
 
 export function DashboardPage() {
+  const router = useRouter();
   const { isHydrated, token, user } = useAuthStore();
   const [sets, setSets] = useState<FlashcardSet[]>([]);
   const [editingSet, setEditingSet] = useState<FlashcardSet | null>(null);
+  const [isAiSubmitting, setIsAiSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [aiErrorMessage, setAiErrorMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [formError, setFormError] = useState("");
 
@@ -100,6 +110,26 @@ export function DashboardPage() {
       setErrorMessage(
         getApiErrorMessage(error, "Unable to delete this flashcard set and its related data."),
       );
+    }
+  }
+
+  async function handleAiGenerate(payload: GenerateAiFlashcardSetPayload) {
+    setAiErrorMessage("");
+    setIsAiSubmitting(true);
+
+    try {
+      const response = await aiFlashcardGenerationService.generate(payload);
+
+      await refreshSets();
+      router.push(`/deck/${response.flashcardSetId}`);
+      return true;
+    } catch (error) {
+      setAiErrorMessage(
+        getApiErrorMessage(error, "Unable to generate an AI deck right now."),
+      );
+      return false;
+    } finally {
+      setIsAiSubmitting(false);
     }
   }
 
@@ -276,6 +306,14 @@ export function DashboardPage() {
             onSubmit={handleSubmit}
           />
 
+          {!editingSet ? (
+            <AiSetGeneratorForm
+              errorMessage={aiErrorMessage}
+              isSubmitting={isAiSubmitting}
+              onSubmit={handleAiGenerate}
+            />
+          ) : null}
+
           <ShareCodeForm />
         </div>
 
@@ -289,6 +327,7 @@ export function DashboardPage() {
           <div className="mt-8 grid gap-3">
             {[
               "Create a set with a clear title and language pair",
+              "Generate a deck with AI from a topic in one step",
               "Use the description to group a topic or learning goal",
               "Open a deck to add cards and switch into study mode",
               "Edit or remove old decks anytime from your library",

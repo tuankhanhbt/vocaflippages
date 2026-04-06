@@ -432,10 +432,23 @@ export function SharedDeckPage({ shareCode }: SharedDeckPageProps) {
                     src={activeCard.frontImageUrl}
                   />
                 ) : (
-                  <h3 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950">
-                    {activeCard.frontText}
-                  </h3>
+                  <>
+                    <h3 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950">
+                      {activeCard.frontText}
+                    </h3>
+                    {activeCard.phonetic ? (
+                      <p className="mt-3 text-sm font-medium text-[#205781]">
+                        {activeCard.phonetic}
+                      </p>
+                    ) : null}
+                  </>
                 )}
+
+                {activeCard.audioUrl ? (
+                  <audio className="mt-4 w-full" controls preload="none" src={activeCard.audioUrl}>
+                    Your browser does not support audio playback.
+                  </audio>
+                ) : null}
               </div>
 
               {isAnswerVisible ? (

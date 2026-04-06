@@ -12,7 +12,11 @@ export function SiteHeader() {
   const [isPending, startTransition] = useTransition();
   const { token, user } = useAuthStore();
 
-  if (pathname === "/login" || pathname === "/register") {
+  if (
+    pathname === "/login"
+    || pathname === "/register"
+    || pathname === "/oauth2/callback"
+  ) {
     return null;
   }
 

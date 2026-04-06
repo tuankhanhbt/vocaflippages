@@ -1,30 +1,80 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import { useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { ChevronLeft, ChevronRight, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getApiErrorMessage } from "@/lib/api-error";
+import { flashcardService } from "@/services/flashcard.service";
 import { reviewModeService } from "@/services/review-mode.service";
 import type { Flashcard } from "@/types/flashcard";
+import { ReviewCompletePopup } from "./review-complete-popup";
 
 interface ReviewModePlayerProps {
   deckId: number | string;
   deckTitle: string;
+  onStartLearnSession?: () => void;
 }
+
+const flipTransition = {
+  duration: 0.35,
+  ease: [0.22, 1, 0.36, 1] as const,
+};
+
+const frontFaceMotion = {
+  initial: { opacity: 0, rotateY: -90 },
+  animate: { opacity: 1, rotateY: 0 },
+  exit: { opacity: 0, rotateY: 90 },
+};
+
+const backFaceMotion = {
+  initial: { opacity: 0, rotateY: 90 },
+  animate: { opacity: 1, rotateY: 0 },
+  exit: { opacity: 0, rotateY: -90 },
+};
 
 export function ReviewModePlayer({
   deckId,
   deckTitle,
+  onStartLearnSession,
 }: ReviewModePlayerProps) {
   const [cards, setCards] = useState<Flashcard[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
+  const [isCompletionOpen, setIsCompletionOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSavingProgress, setIsSavingProgress] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const currentCard = cards[currentIndex];
+  const currentPhonetic = currentCard?.phonetic?.trim() || "";
+  const currentAudioUrl = currentCard?.audioUrl?.trim() || "";
+  const isLastCard = currentIndex === cards.length - 1;
+  const canPlayPronunciation =
+    currentCard?.frontContentType === "TEXT" &&
+    Boolean(currentPhonetic) &&
+    Boolean(currentAudioUrl);
+
+  function mergeReviewCardsWithFullCards(reviewCards: Flashcard[], fullCards: Flashcard[]) {
+    const fullCardMap = new Map(fullCards.map((card) => [card.id, card]));
+
+    return reviewCards.map((card) => {
+      const fullCard = fullCardMap.get(card.id);
+
+      if (!fullCard) {
+        return card;
+      }
+
+      return {
+        ...fullCard,
+        ...card,
+        audioUrl: fullCard.audioUrl ?? card.audioUrl,
+        phonetic: fullCard.phonetic ?? card.phonetic,
+      };
+    });
+  }
 
   useEffect(() => {
     let isMounted = true;
@@ -34,15 +84,19 @@ export function ReviewModePlayer({
       setErrorMessage("");
 
       try {
-        const response = await reviewModeService.getReviewMode(deckId);
+        const [reviewResponse, fullCards] = await Promise.all([
+          reviewModeService.getReviewMode(deckId),
+          flashcardService.list(deckId),
+        ]);
 
         if (!isMounted) {
           return;
         }
 
-        setCards(response.cards);
-        setCurrentIndex(response.currentCardIndex ?? 0);
+        setCards(mergeReviewCardsWithFullCards(reviewResponse.cards, fullCards));
+        setCurrentIndex(reviewResponse.currentCardIndex ?? 0);
         setIsFlipped(false);
+        setIsCompletionOpen(false);
       } catch (error) {
         if (!isMounted) {
           return;
@@ -64,6 +118,29 @@ export function ReviewModePlayer({
       isMounted = false;
     };
   }, [deckId]);
+
+  useEffect(() => {
+    if (!audioRef.current) {
+      return;
+    }
+
+    audioRef.current.pause();
+    audioRef.current.currentTime = 0;
+  }, [currentIndex, isFlipped]);
+
+  useEffect(() => {
+    if (!cards.length || !isLastCard || !isFlipped || isCompletionOpen) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setIsCompletionOpen(true);
+    }, 470);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [cards.length, isCompletionOpen, isFlipped, isLastCard]);
 
   async function persistProgress(nextIndex: number) {
     setIsSavingProgress(true);
@@ -89,6 +166,7 @@ export function ReviewModePlayer({
     const nextIndex = currentIndex - 1;
     setCurrentIndex(nextIndex);
     setIsFlipped(false);
+    setIsCompletionOpen(false);
     await persistProgress(nextIndex);
   }
 
@@ -100,7 +178,61 @@ export function ReviewModePlayer({
     const nextIndex = currentIndex + 1;
     setCurrentIndex(nextIndex);
     setIsFlipped(false);
+    setIsCompletionOpen(false);
     await persistProgress(nextIndex);
+  }
+
+  async function handlePlayPronunciation(
+    event: React.MouseEvent<HTMLButtonElement>,
+  ) {
+    event.stopPropagation();
+
+    if (!canPlayPronunciation || !audioRef.current) {
+      return;
+    }
+
+    try {
+      audioRef.current.currentTime = 0;
+      await audioRef.current.play();
+    } catch {
+      setErrorMessage("Unable to play pronunciation audio for this card.");
+    }
+  }
+
+  async function handleStudyAgain() {
+    if (isSavingProgress) {
+      return;
+    }
+
+    setErrorMessage("");
+    setCurrentIndex(0);
+    setIsFlipped(false);
+    setIsCompletionOpen(false);
+    await persistProgress(0);
+  }
+
+  function handleStartLearnSession() {
+    if (!onStartLearnSession) {
+      return;
+    }
+
+    setIsCompletionOpen(false);
+    onStartLearnSession();
+  }
+
+  function toggleFlip() {
+    setIsFlipped((value) => !value);
+  }
+
+  function handleCardKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (event.currentTarget !== event.target) {
+      return;
+    }
+
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      toggleFlip();
+    }
   }
 
   if (isLoading) {
@@ -131,6 +263,8 @@ export function ReviewModePlayer({
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-8">
+      <audio ref={audioRef} preload="none" src={currentAudioUrl || undefined} />
+
       <div className="space-y-3">
         <div className="flex items-center justify-between text-sm font-medium text-slate-600">
           <span>
@@ -154,83 +288,136 @@ export function ReviewModePlayer({
       ) : null}
 
       <div
-        className="aspect-[4/3] w-full cursor-pointer"
-        onClick={() => setIsFlipped((value) => !value)}
+        aria-label={isFlipped ? "Show front side" : "Show back side"}
+        aria-pressed={isFlipped}
+        className="aspect-[4/3] w-full cursor-pointer rounded-[2.2rem] outline-none focus-visible:ring-4 focus-visible:ring-[#205781]/15"
+        onClick={toggleFlip}
+        onKeyDown={handleCardKeyDown}
+        role="button"
+        tabIndex={0}
       >
-        {!isFlipped ? (
-          <div className="flex h-full flex-col justify-between rounded-[2.2rem] border border-white/70 bg-[linear-gradient(180deg,#ffffff_0%,#eef7ff_100%)] p-8 shadow-[0_28px_80px_rgba(15,23,42,0.12)]">
-            <div className="flex items-center justify-between">
-              <span className="rounded-full bg-[#205781]/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-[#205781]">
-                Review mode
-              </span>
-              <span className="text-sm font-medium text-slate-500">
-                {currentCard.frontContentType}
-              </span>
-            </div>
+        <div className="relative h-full w-full">
+          <AnimatePresence initial={false} mode="wait">
+            {!isFlipped ? (
+              <motion.div
+                animate={frontFaceMotion.animate}
+                className="absolute inset-0 flex h-full flex-col justify-between rounded-[2.2rem] border border-white/70 bg-[linear-gradient(180deg,#ffffff_0%,#eef7ff_100%)] p-8 shadow-[0_28px_80px_rgba(15,23,42,0.12)]"
+                exit={frontFaceMotion.exit}
+                initial={frontFaceMotion.initial}
+                key={`${currentCard.id}-front`}
+                style={{ transformPerspective: 1200, willChange: "transform, opacity" }}
+                transition={flipTransition}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="rounded-full bg-[#205781]/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-[#205781]">
+                    Review mode
+                  </span>
+                  <span className="text-sm font-medium text-slate-500">
+                    {currentCard.frontContentType}
+                  </span>
+                </div>
 
-            <div className="flex flex-1 items-center justify-center">
-              {currentCard.frontContentType === "IMAGE" && currentCard.frontImageUrl ? (
-                <img
-                  alt={currentCard.backText}
-                  className="max-h-full max-w-full rounded-[1.6rem] object-cover shadow-[0_24px_45px_rgba(15,23,42,0.16)]"
-                  src={currentCard.frontImageUrl}
-                />
-              ) : (
-                <h3 className="text-center text-4xl font-semibold tracking-tight text-slate-950 sm:text-6xl">
-                  {currentCard.frontText}
-                </h3>
-              )}
-            </div>
+                <div className="flex flex-1 items-center justify-center">
+                  {currentCard.frontContentType === "IMAGE" && currentCard.frontImageUrl ? (
+                    <img
+                      alt={currentCard.backText}
+                      className="max-h-full max-w-full rounded-[1.6rem] object-cover shadow-[0_24px_45px_rgba(15,23,42,0.16)]"
+                      src={currentCard.frontImageUrl}
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center gap-4 text-center">
+                      <h3 className="text-center text-4xl font-semibold tracking-tight text-slate-950 sm:text-6xl">
+                        {currentCard.frontText}
+                      </h3>
 
-            <p className="text-center text-sm text-slate-500">
-              Tap to reveal the back side.
-            </p>
-          </div>
-        ) : (
-          <div className="flex h-full flex-col rounded-[2.2rem] border border-[#205781]/15 bg-[linear-gradient(180deg,#f8fbff_0%,#ffffff_100%)] p-8 shadow-[0_28px_80px_rgba(15,23,42,0.12)]">
-            <div className="flex items-center justify-between">
-              <span className="rounded-full bg-emerald-100 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-emerald-700">
-                Back side
-              </span>
-              <span className="text-sm font-medium text-slate-500">
-                Tap to flip back
-              </span>
-            </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-base font-medium text-[#205781] sm:text-lg">
+                          {currentPhonetic || "Phonetic unavailable"}
+                        </span>
+                        <button
+                          aria-label={
+                            canPlayPronunciation
+                              ? "Play pronunciation"
+                              : "Pronunciation unavailable"
+                          }
+                          className={[
+                            "inline-flex h-11 w-11 items-center justify-center rounded-full border transition",
+                            canPlayPronunciation
+                              ? "border-[#205781]/15 bg-[#205781]/10 text-[#205781] hover:bg-[#205781]/16"
+                              : "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-300",
+                          ]
+                            .filter(Boolean)
+                            .join(" ")}
+                          disabled={!canPlayPronunciation}
+                          onClick={(event) => void handlePlayPronunciation(event)}
+                          type="button"
+                        >
+                          <Volume2 size={18} />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
 
-            <div className="mt-8 flex-1 space-y-6">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
-                  Meaning
+                <p className="text-center text-sm text-slate-500">
+                  Tap to reveal the back side.
                 </p>
-                <h3 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
-                  {currentCard.backText}
-                </h3>
-              </div>
-
-              {currentCard.exampleText ? (
-                <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50/90 p-5">
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
-                    Example
-                  </p>
-                  <p className="mt-3 text-base leading-8 text-slate-700">
-                    {currentCard.exampleText}
-                  </p>
+              </motion.div>
+            ) : (
+              <motion.div
+                animate={backFaceMotion.animate}
+                className="absolute inset-0 flex h-full flex-col rounded-[2.2rem] border border-[#205781]/15 bg-[linear-gradient(180deg,#f8fbff_0%,#ffffff_100%)] p-8 shadow-[0_28px_80px_rgba(15,23,42,0.12)]"
+                exit={backFaceMotion.exit}
+                initial={backFaceMotion.initial}
+                key={`${currentCard.id}-back`}
+                style={{ transformPerspective: 1200, willChange: "transform, opacity" }}
+                transition={flipTransition}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="rounded-full bg-emerald-100 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-emerald-700">
+                    Back side
+                  </span>
+                  <span className="text-sm font-medium text-slate-500">
+                    Tap to flip back
+                  </span>
                 </div>
-              ) : null}
 
-              {currentCard.noteText ? (
-                <div className="rounded-[1.5rem] border border-[#205781]/12 bg-[#205781]/5 p-5">
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#205781]">
-                    Note
-                  </p>
-                  <p className="mt-3 text-sm leading-7 text-slate-700">
-                    {currentCard.noteText}
-                  </p>
+                <div className="mt-8 flex-1 space-y-6">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
+                      Meaning
+                    </p>
+                    <h3 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
+                      {currentCard.backText}
+                    </h3>
+                  </div>
+
+                  {currentCard.exampleText ? (
+                    <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50/90 p-5">
+                      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
+                        Example
+                      </p>
+                      <p className="mt-3 text-base leading-8 text-slate-700">
+                        {currentCard.exampleText}
+                      </p>
+                    </div>
+                  ) : null}
+
+                  {currentCard.noteText ? (
+                    <div className="rounded-[1.5rem] border border-[#205781]/12 bg-[#205781]/5 p-5">
+                      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#205781]">
+                        Note
+                      </p>
+                      <p className="mt-3 text-sm leading-7 text-slate-700">
+                        {currentCard.noteText}
+                      </p>
+                    </div>
+                  ) : null}
                 </div>
-              ) : null}
-            </div>
-          </div>
-        )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
 
       <div className="flex justify-center gap-3">
@@ -256,6 +443,15 @@ export function ReviewModePlayer({
           <ChevronRight size={16} />
         </Button>
       </div>
+
+      <ReviewCompletePopup
+        deckTitle={deckTitle}
+        isBusy={isSavingProgress}
+        isOpen={isCompletionOpen}
+        onStartLearnSession={cards.length >= 4 ? handleStartLearnSession : undefined}
+        onStudyAgain={() => void handleStudyAgain()}
+        reviewedCount={cards.length}
+      />
     </div>
   );
 }

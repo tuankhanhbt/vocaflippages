@@ -502,8 +502,12 @@ export function DeckPage({ deckId }: DeckPageProps) {
           {errorMessage}
         </div>
       ) : null}
-  {activeTab === "review" ? (
-  <ReviewModePlayer deckId={deck.id} deckTitle={deck.title} />
+{activeTab === "review" ? (
+  <ReviewModePlayer
+    deckId={deck.id}
+    deckTitle={deck.title}
+    onStartLearnSession={() => setActiveTab("study")}
+  />
 ) : activeTab === "study" ? (
   cards.length >= 4 ? (
     <StudyModePlayer
@@ -642,10 +646,23 @@ export function DeckPage({ deckId }: DeckPageProps) {
                       src={card.frontImageUrl}
                     />
                   ) : (
-                    <h3 className="mt-4 text-2xl font-semibold tracking-tight text-slate-950">
-                      {card.frontText}
-                    </h3>
+                    <>
+                      <h3 className="mt-4 text-2xl font-semibold tracking-tight text-slate-950">
+                        {card.frontText}
+                      </h3>
+                      {card.phonetic ? (
+                        <p className="mt-3 text-sm font-medium text-[#205781]">
+                          {card.phonetic}
+                        </p>
+                      ) : null}
+                    </>
                   )}
+
+                  {card.audioUrl ? (
+                    <audio className="mt-4 w-full" controls preload="none" src={card.audioUrl}>
+                      Your browser does not support audio playback.
+                    </audio>
+                  ) : null}
                 </div>
 
                 <div className="flex flex-col gap-4 rounded-[1.5rem] border border-slate-200 bg-white/80 p-5">

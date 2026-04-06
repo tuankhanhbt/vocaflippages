@@ -8,6 +8,7 @@ type AuthMode = "login" | "register";
 
 interface AuthScreenProps {
   initialMode: AuthMode;
+  oauthError?: string;
 }
 
 const authContent = {
@@ -27,7 +28,7 @@ const authContent = {
   },
 } as const;
 
-export function AuthScreen({ initialMode }: AuthScreenProps) {
+export function AuthScreen({ initialMode, oauthError = "" }: AuthScreenProps) {
   const [mode, setMode] = useState<AuthMode>(initialMode);
 
   useEffect(() => {
@@ -53,7 +54,11 @@ export function AuthScreen({ initialMode }: AuthScreenProps) {
       }
       title={content.title}
     >
-      <AuthForm mode={mode} onModeChange={handleModeChange} />
+      <AuthForm
+        mode={mode}
+        oauthError={mode === "login" ? oauthError : ""}
+        onModeChange={handleModeChange}
+      />
     </AuthShell>
   );
 }

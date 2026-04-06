@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowRight,
-  Code2,
   Eye,
   EyeOff,
   Globe,
@@ -23,6 +22,7 @@ import { setAuthSession, useAuthStore } from "@/store/auth.store";
 interface AuthFormProps {
   mode: "login" | "register";
   onModeChange: (nextMode: "login" | "register") => void;
+  oauthError?: string;
 }
 
 const formMotion = {
@@ -32,9 +32,9 @@ const formMotion = {
 } as const;
 
 const socialButtonClassName =
-  "flex min-h-[4.5rem] items-center justify-center gap-3 rounded-[1.35rem] border border-[hsl(var(--auth-border))] bg-white/88 px-5 text-lg font-semibold text-slate-950 shadow-[0_12px_24px_rgba(15,23,42,0.03)] transition hover:border-[hsl(var(--primary))] hover:bg-white";
+  "flex min-h-[4.5rem] items-center justify-center gap-3 rounded-[1.35rem] border border-[hsl(var(--auth-border))] bg-white/88 px-5 text-lg font-semibold text-slate-950 shadow-[0_12px_24px_rgba(15,23,42,0.03)] transition hover:border-[hsl(var(--primary))] hover:bg-white disabled:cursor-not-allowed disabled:opacity-60";
 
-export function AuthForm({ mode, onModeChange }: AuthFormProps) {
+export function AuthForm({ mode, onModeChange, oauthError = "" }: AuthFormProps) {
   const router = useRouter();
   const [isRouting, startTransition] = useTransition();
   const { token } = useAuthStore();
@@ -44,8 +44,11 @@ export function AuthForm({ mode, onModeChange }: AuthFormProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [isGoogleRedirecting, setIsGoogleRedirecting] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const activeErrorMessage = errorMessage || oauthError;
+  const isBusy = isSubmitting || isRouting || isGoogleRedirecting;
 
   const fullNameError =
     isRegister && fullName.trim().length > 0 && fullName.trim().length < 3
@@ -97,6 +100,12 @@ export function AuthForm({ mode, onModeChange }: AuthFormProps) {
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  function handleGoogleSignIn() {
+    setErrorMessage("");
+    setIsGoogleRedirecting(true);
+    window.location.assign(authService.getGoogleAuthorizationUrl());
   }
 
   if (token) {
@@ -271,20 +280,20 @@ export function AuthForm({ mode, onModeChange }: AuthFormProps) {
           ) : null}
         </div>
 
-        {errorMessage ? (
+        {activeErrorMessage ? (
           <motion.div
             animate={{ opacity: 1, y: 0 }}
             className="rounded-[1.35rem] border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700"
             initial={{ opacity: 0, y: -8 }}
           >
-            {errorMessage}
+            {activeErrorMessage}
           </motion.div>
         ) : null}
 
         <Button
           block
           className="min-h-[4.5rem] rounded-[1.4rem] text-lg font-semibold"
-          disabled={isSubmitting || isRouting}
+          disabled={isBusy}
           type="submit"
         >
           <span>
@@ -307,25 +316,17 @@ export function AuthForm({ mode, onModeChange }: AuthFormProps) {
           <span className="h-px flex-1 bg-[hsl(var(--auth-border))]" />
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div>
           <motion.button
             className={socialButtonClassName}
+            disabled={isBusy}
+            onClick={handleGoogleSignIn}
             type="button"
-            whileHover={{ y: -2 }}
+            whileHover={isBusy ? undefined : { y: -2 }}
             whileTap={{ scale: 0.985 }}
           >
             <Globe size={22} strokeWidth={2} />
-            <span>Google</span>
-          </motion.button>
-
-          <motion.button
-            className={socialButtonClassName}
-            type="button"
-            whileHover={{ y: -2 }}
-            whileTap={{ scale: 0.985 }}
-          >
-            <Code2 size={22} strokeWidth={2} />
-            <span>GitHub</span>
+            <span>{isGoogleRedirecting ? "Redirecting..." : "Google"}</span>
           </motion.button>
         </div>
       </motion.form>

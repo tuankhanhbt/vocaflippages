@@ -56,6 +56,8 @@ export interface Flashcard {
   backText: string;
   exampleText: string | null;
   noteText: string | null;
+  phonetic?: string | null;
+  audioUrl?: string | null;
   orderIndex?: number;
   createdAt?: string;
   updatedAt?: string;
@@ -69,6 +71,28 @@ export interface FlashcardPayload {
   exampleText?: string;
   noteText?: string;
   orderIndex?: number;
+}
+
+export interface GenerateAiFlashcardSetPayload {
+  title: string;
+  description?: string;
+  topic: string;
+  count: number;
+  sourceLanguage?: string;
+  targetLanguage?: string;
+}
+
+export interface GeneratedAiFlashcardSetResponse {
+  flashcardSetId: number;
+  title: string;
+  description: string | null;
+  topic: string;
+  sourceLanguage: string;
+  targetLanguage: string;
+  requestedCount: number;
+  actualCount: number;
+  cards: Flashcard[];
+  createdAt: string;
 }
 
 
