@@ -20,11 +20,17 @@ import {
   getDeckPresentation,
   getLanguagePairLabel,
 } from "@/features/flashcards/deck-presentation";
+import { ShareSetPanel } from "@/features/flashcards/components/share-set-panel";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { flashcardService } from "@/services/flashcard.service";
 import { flashcardSetService } from "@/services/flashcard-set.service";
 import { useAuthStore } from "@/store/auth.store";
-import type { Flashcard, FlashcardPayload, FlashcardSet } from "@/types/flashcard";
+import type {
+  Flashcard,
+  FlashcardPayload,
+  FlashcardSet,
+  ShareSettingsPayload,
+} from "@/types/flashcard";
 import { ReviewModePlayer } from "./review-mode-player";
 import { StudyModePlayer } from "./study-mode-player";
 interface DeckPageProps {
@@ -40,15 +46,28 @@ export function DeckPage({ deckId }: DeckPageProps) {
   const [activeTab, setActiveTab] = useState<"review" |"study" | "manage">("manage");
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isShareSubmitting, setIsShareSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [formError, setFormError] = useState("");
+  const [shareErrorMessage, setShareErrorMessage] = useState("");
+  const [shareStatusMessage, setShareStatusMessage] = useState("");
+  const [shareUrl, setShareUrl] = useState("");
   const canAccessStudyMode = cards.length >= 4;
   const accent = getDeckPresentation(deckId);
+
+  function buildShareUrl(shareCode?: string | null) {
+    if (!shareCode || typeof window === "undefined") {
+      return "";
+    }
+
+    return new URL(`/shared/${shareCode}`, window.location.origin).toString();
+  }
 
   async function refreshDeck() {
     if (!token) {
       setDeck(null);
       setCards([]);
+      setShareUrl("");
       return;
     }
 
@@ -63,6 +82,7 @@ export function DeckPage({ deckId }: DeckPageProps) {
 
       setDeck(setResponse);
       setCards(cardsResponse);
+      setShareUrl(buildShareUrl(setResponse.shareCode));
     } catch (error) {
       setErrorMessage(
         getApiErrorMessage(error, "Unable to load this deck right now."),
@@ -104,6 +124,101 @@ export function DeckPage({ deckId }: DeckPageProps) {
       );
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function handleUpdateShareSettings(payload: ShareSettingsPayload) {
+    if (!deck) {
+      return;
+    }
+
+    setIsShareSubmitting(true);
+    setShareErrorMessage("");
+    setShareStatusMessage("");
+
+    try {
+      const updatedDeck = await flashcardSetService.updateShareSettings(deck.id, payload);
+
+      setDeck(updatedDeck);
+      setShareUrl(buildShareUrl(updatedDeck.shareCode));
+
+      if (payload.visibility) {
+        setShareStatusMessage(
+          payload.visibility === "PUBLIC"
+            ? "This deck is now public and can be opened from its share link."
+            : "This deck is private again. Existing links will stop working until you publish it.",
+        );
+      } else if (typeof payload.allowReview === "boolean") {
+        setShareStatusMessage(
+          payload.allowReview
+            ? "Review access is enabled for the shared page."
+            : "Review access is disabled for the shared page.",
+        );
+      } else if (typeof payload.allowCopy === "boolean") {
+        setShareStatusMessage(
+          payload.allowCopy
+            ? "Copy permission is enabled for this shared deck."
+            : "Copy permission is disabled for this shared deck.",
+        );
+      }
+    } catch (error) {
+      setShareErrorMessage(
+        getApiErrorMessage(error, "Unable to update share settings right now."),
+      );
+    } finally {
+      setIsShareSubmitting(false);
+    }
+  }
+
+  async function handleGenerateShareLink() {
+    if (!deck) {
+      return;
+    }
+
+    setIsShareSubmitting(true);
+    setShareErrorMessage("");
+    setShareStatusMessage("");
+
+    try {
+      const response = await flashcardSetService.generateShareLink(deck.id);
+
+      setDeck((currentDeck) =>
+        currentDeck
+          ? {
+              ...currentDeck,
+              shareCode: response.shareCode,
+            }
+          : currentDeck,
+      );
+      setShareUrl(response.shareUrl);
+      setShareStatusMessage(
+        deck.shareCode
+          ? "A fresh share link has been generated for this deck."
+          : "Your first share link is ready.",
+      );
+    } catch (error) {
+      setShareErrorMessage(
+        getApiErrorMessage(error, "Unable to generate a share link right now."),
+      );
+    } finally {
+      setIsShareSubmitting(false);
+    }
+  }
+
+  async function handleCopyShareLink() {
+    const nextShareUrl = shareUrl || buildShareUrl(deck?.shareCode);
+
+    if (!nextShareUrl) {
+      setShareErrorMessage("Generate a share link before copying it.");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(nextShareUrl);
+      setShareErrorMessage("");
+      setShareStatusMessage("Share link copied to clipboard.");
+    } catch {
+      setShareErrorMessage("Unable to copy the share link automatically on this browser.");
     }
   }
 
@@ -285,6 +400,14 @@ export function DeckPage({ deckId }: DeckPageProps) {
               <span className="rounded-full border border-white/70 bg-white/85 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
                 {cards.length} cards
               </span>
+              <span className="rounded-full border border-white/70 bg-white/85 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
+                {deck.visibility === "PUBLIC" ? "Public" : "Private"}
+              </span>
+              {deck.shareCode ? (
+                <span className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-emerald-700">
+                  Link ready
+                </span>
+              ) : null}
             </div>
           </div>
 
@@ -465,6 +588,17 @@ export function DeckPage({ deckId }: DeckPageProps) {
         </div>
       </aside>
     </div>
+
+    <ShareSetPanel
+      deck={deck}
+      errorMessage={shareErrorMessage}
+      isBusy={isShareSubmitting}
+      onCopyLink={() => void handleCopyShareLink()}
+      onGenerateLink={() => void handleGenerateShareLink()}
+      onUpdateShareSettings={(payload) => void handleUpdateShareSettings(payload)}
+      shareUrl={shareUrl || buildShareUrl(deck.shareCode)}
+      statusMessage={shareStatusMessage}
+    />
 
     <section className="space-y-5">
       <div className="flex items-center justify-between gap-4">

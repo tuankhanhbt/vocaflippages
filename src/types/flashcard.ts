@@ -1,5 +1,7 @@
 export type FlashcardFrontContentType = "TEXT" | "IMAGE";
 export type ReviewRating = "AGAIN" | "HARD" | "GOOD" | "EASY";
+export type FlashcardSetVisibility = "PRIVATE" | "PUBLIC" | "SHARED";
+
 export interface FlashcardSet {
   id: number;
   title: string;
@@ -7,8 +9,13 @@ export interface FlashcardSet {
   sourceLanguage: string;
   targetLanguage: string;
   cardCount: number;
+  archived?: boolean;
   createdAt?: string;
   updatedAt?: string;
+  visibility?: FlashcardSetVisibility;
+  shareCode?: string | null;
+  allowCopy?: boolean;
+  allowReview?: boolean;
 }
 
 export interface FlashcardSetPayload {
@@ -18,14 +25,38 @@ export interface FlashcardSetPayload {
   targetLanguage: string;
 }
 
+export interface ShareSettingsPayload {
+  visibility?: Exclude<FlashcardSetVisibility, "SHARED">;
+  allowCopy?: boolean;
+  allowReview?: boolean;
+}
+
+export interface ShareLinkResponse {
+  shareCode: string;
+  shareUrl: string;
+}
+
+export interface SharedFlashcardSet {
+  id: number;
+  title: string;
+  description: string | null;
+  sourceLanguage: string;
+  targetLanguage: string;
+  cardCount: number;
+  allowCopy: boolean;
+  allowReview: boolean;
+}
+
 export interface Flashcard {
   id: number;
+  flashcardSetId?: number;
   frontContentType: FlashcardFrontContentType;
   frontText: string | null;
   frontImageUrl: string | null;
   backText: string;
   exampleText: string | null;
   noteText: string | null;
+  orderIndex?: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -37,6 +68,7 @@ export interface FlashcardPayload {
   backText: string;
   exampleText?: string;
   noteText?: string;
+  orderIndex?: number;
 }
 
 
