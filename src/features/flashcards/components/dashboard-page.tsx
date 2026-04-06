@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { BookOpen, Layers3, Target, WandSparkles } from "lucide-react";
 import { getButtonClassName } from "@/components/ui/button";
 import { DeckCard } from "@/features/flashcards/components/deck-card";
+import { ShareCodeForm } from "@/features/flashcards/components/share-code-form";
 import { SetForm } from "@/features/flashcards/components/set-form";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { flashcardSetService } from "@/services/flashcard-set.service";
@@ -80,7 +81,7 @@ export function DashboardPage() {
 
   async function handleDelete(deck: FlashcardSet) {
     const shouldDelete = window.confirm(
-      `Delete "${deck.title}"? If it still has cards, the backend may reject the request until those cards are removed first.`,
+      `Delete "${deck.title}"? This will also remove its flashcards and related review/study progress.`,
     );
 
     if (!shouldDelete) {
@@ -97,7 +98,7 @@ export function DashboardPage() {
       await refreshSets();
     } catch (error) {
       setErrorMessage(
-        getApiErrorMessage(error, "Unable to delete this flashcard set."),
+        getApiErrorMessage(error, "Unable to delete this flashcard set and its related data."),
       );
     }
   }
@@ -274,6 +275,8 @@ export function DashboardPage() {
             }}
             onSubmit={handleSubmit}
           />
+
+          <ShareCodeForm />
         </div>
 
         <aside className="rounded-[2rem] border border-white/70 bg-[linear-gradient(180deg,#0f172a_0%,#172554_100%)] p-8 text-white shadow-[0_28px_80px_rgba(15,23,42,0.16)]">

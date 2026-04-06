@@ -250,7 +250,7 @@ export function DeckPage({ deckId }: DeckPageProps) {
     }
 
     const shouldDelete = window.confirm(
-      `Delete "${deck.title}"? If cards still exist, remove them first if your backend does not cascade delete.`,
+      `Delete "${deck.title}"? This will also remove its flashcards and related review/study progress.`,
     );
 
     if (!shouldDelete) {
@@ -262,7 +262,7 @@ export function DeckPage({ deckId }: DeckPageProps) {
       router.push("/dashboard");
     } catch (error) {
       setErrorMessage(
-        getApiErrorMessage(error, "Unable to delete this deck right now."),
+        getApiErrorMessage(error, "Unable to delete this deck and its related data right now."),
       );
     }
   }
